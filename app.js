@@ -1,68 +1,71 @@
-const rootTemplate = _.template(`
-  <div id="js-main-region"></div>
-  <div id="js-second-region"></div>
-`)
-
-const Result = Mn.View.extend({
-  className: 'mt-5 card p-5',
-  template: _.template('<div><%= count %></div>'),
-
-  initialize(ops) {
-    this.count = ops.count || 0;
-  },
-
-  templateContext() {
-    return {
-      count: this.count
-    }
-  }
+const JokeModel = Backbone.Model.extend({
+  urlRoot: 'https://api.chucknorris.io/jokes/random'
 })
 
-const Btn = Mn.View.extend({
-  tagName: 'button',
-  className: 'btn btn-primary',
-  template: _.template('Click'),
-
-  triggers: {
-    'click': 'button:click'
-  }
+const Joke = Mn.View.extend({
+  className: 'alert alert-dark mt-5',
+  template: _.template(`
+    <img class="mb-3" src="<%= icon_url %>"></img>
+    <p><%= value %></p>
+  `),
 })
 
-const Root = Mn.View.extend({
+
+const NorrisWidget = Mn.View.extend({
   tagName: 'div',
-  className: 'container mt-5 mb-5 text-center',
-  template: rootTemplate,
+  className: 'container mt-5 p-5 text-center',
+  template: _.template(`
+    <div>
+      <button class="btn btn-primary btn-lg">New joke</button>
+    </div>
+    <div id="js-joke-region"></div>`),
 
   initialize() {
-    this.count = 0;
+    this.model = new JokeModel();
+  },
+  
+  ui: {
+    'btn': 'button'
   },
 
-  childViewEvents: {
-    'button:click': 'onClick'
+  events: {
+    'click @ui.btn': 'fetchJoke'
+  },
+
+  modelEvents: {
+    'sync': 'renderJoke'
   },
 
   regions: {
-    'btnRegion': '#js-main-region',
-    'previewRegion': '#js-second-region'
+    'jokeRegion': '#js-joke-region'
   },
 
-  onClick() {
-    this.count = this.count + 1;
-    this.renderResult(this.count);
+  fetchJoke() {
+    this.getUI('btn').attr('disabled', true).text('Loading...');
+    this.model.unset('id');
+    this.model.fetch();
   },
 
-  renderResult(count) {
-    this.showChildView('previewRegion', new Result({count: count}))
+  renderJoke(model, res, ops) {
+    this.getUI('btn').attr('disabled', false).text('New joke');
+    this.showChildView('jokeRegion', new Joke({model: model}))
   },
 
   onRender() {
-    const btn = new Btn();
-    this.showChildView('btnRegion', btn);
-    this.renderResult(this.count)
+    this.model.fetch();
   }
 })
 
-const root = new Root();
-root.render();
 
-$('#app').html(root.$el)
+// $('#app').html(new NorrisWidget().render().$el)
+
+const App = Mn.Application.extend({
+
+  region: '#app',
+
+  onStart() {
+    this.showView(new NorrisWidget())
+  }
+});
+
+new App().start();
